@@ -1,0 +1,15 @@
+[
+  {
+    "arguments": [
+      "/usr/bin/g++",
+      "-c",
+      "-Wall",
+      "-o",
+      "chip8",
+      "chip8.cpp"
+    ],
+    "directory": "/Users/tonyho/development_practice/chip8-cpp",
+    "file": "/Users/tonyho/development_practice/chip8-cpp/chip8.cpp",
+    "output": "/Users/tonyho/development_practice/chip8-cpp/chip8"
+  }
+]
