@@ -1,4 +1,5 @@
 #include <SDL2/SDL_render.h>
+#include <SDL2/SDL_surface.h>
 #include <SDL2/SDL_video.h>
 #include <cstdint>
 #include <iostream>
@@ -39,7 +40,7 @@ bool display[32][64];
 /* bool running = true; */
 int programCounter = 0x200;
 int SCREEN_WIDTH = 640;
-int SCREEN_HEIGHT = 480;
+int SCREEN_HEIGHT = 320;
 SDL_Renderer *renderer = NULL;
 SDL_Window *window = NULL;
 
@@ -54,44 +55,28 @@ int main() {
   initializeFont();
   readAndStoreRom();
   initalizeScreen();
-  // bool quit = false;
-  // SDL_Event e;
-  // while (!quit) {
-  //   while (SDL_PollEvent(&e) != 0) {
-  //     if (e.type == SDL_QUIT) {
-  //       quit = true;
-  //     }
-  //   }
-  //   SDL_RenderClear(renderer);
-  //   SDL_RenderCopy(renderer, texture, NULL, NULL);
-  //   SDL_RenderPresent(renderer);
-  // }
-
-  // SDL_DestroyTexture(texture);
-  // SDL_DestroyRenderer(renderer);
-  // SDL_DestroyWindow(window);
-  // SDL_Quit();
 
   // timing should be 700 cycles per second
   bool running = true;
   SDL_Event e;
-  programCounter = 0x200; 
+  programCounter = 0x200; // 512 in hex
   while (running) {
     while (SDL_PollEvent(&e) != 0) {
       if (e.type == SDL_QUIT) {
-        running = false; 
+        running = false;
       }
     }
     std::cout << "program counter: " << programCounter << std::endl;
     uint8_t firstHalfInstruct = ram[programCounter];
-    uint8_t secondHalfInstruct = ram[programCounter+1];
+    uint8_t secondHalfInstruct = ram[programCounter + 1];
     uint16_t instruction = static_cast<uint16_t>(firstHalfInstruct << 8);
-  
+
     instruction = instruction | secondHalfInstruct;
-    std::cout << "program counter before decoding " << std::dec << programCounter << std::endl;
+    std::cout << "program counter before decoding " << std::dec
+              << programCounter << std::endl;
     decode(instruction);
     programCounter += 2;
-    SDL_Delay(3000);
+    SDL_Delay(300);
   }
   SDL_DestroyRenderer(renderer);
   SDL_DestroyWindow(window);
@@ -108,7 +93,7 @@ void initalizeScreen() {
   }
   window =
       SDL_CreateWindow("Potato Chip8", SDL_WINDOWPOS_UNDEFINED,
-                       SDL_WINDOWPOS_UNDEFINED, 640, 480, SDL_WINDOW_SHOWN);
+                       SDL_WINDOWPOS_UNDEFINED, SCREEN_WIDTH, SCREEN_HEIGHT, SDL_WINDOW_SHOWN);
   ;
   renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED);
   // add error handling for window and renderer
@@ -119,7 +104,7 @@ void initalizeScreen() {
   int pitch = 0;
   SDL_LockTexture(texture, NULL, (void **)&pixels, &pitch);
 
-  for (int y = 0; y < 480; y++) {
+  for (int y = 0; y < 320; y++) {
     for (int x = 0; x < 640; x++) {
       Uint32 color =
           SDL_MapRGBA(SDL_AllocFormat(SDL_PIXELFORMAT_RGBA8888), 0, 0, 0, 255);
@@ -152,42 +137,35 @@ void readAndStoreRom() {
  */
 
 void redrawScreen() {
-  SDL_Texture *texture = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_RGBA8888,
-                                           SDL_TEXTUREACCESS_STREAMING,
-                                           SCREEN_WIDTH, SCREEN_HEIGHT);
-  Uint32 *pixels = nullptr;
-  int pitch = 0;
-  SDL_LockTexture(texture, NULL, (void **)&pixels, &pitch);
-  for (int y = 0; y < SCREEN_HEIGHT; ++y) {
-    for (int x = 0; x < SCREEN_WIDTH; x++) {
-      bool isPixelTurnedOn = display[y / 10][x / 10];
-      Uint32 color = 0;
-
-      if (isPixelTurnedOn) {
-        color = SDL_MapRGBA(SDL_AllocFormat(SDL_PIXELFORMAT_RGBA8888), 255, 255,
-                            255, 255);
-      } else {
-        color = SDL_MapRGBA(SDL_AllocFormat(SDL_PIXELFORMAT_RGBA8888), 0, 0, 0,
-                            255);
-      }
-      pixels[y * (pitch / 4) + x] = color;
-    }
-  }
-  SDL_UnlockTexture(texture);
   SDL_RenderClear(renderer);
-  SDL_RenderCopy(renderer, texture, NULL, NULL);
-  SDL_RenderPresent(renderer);
-}
+    for (int y = 0; y < 32; ++y) {
+        for (int x = 0; x < 64; ++x) {
+           bool isPixelTurnedOn = display[y][x];
+            if (isPixelTurnedOn) {
+              SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
+            } else {
+              SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
+            }
+          SDL_Rect block {x * 10, y * 10, 10, 10};
+          SDL_RenderDrawRect(renderer, &block);
+          SDL_RenderFillRect(renderer, &block);
+        }
+    }
 
+    SDL_RenderPresent(renderer);
+}
 void decode(uint16_t instruction) {
-  std::cout << "program counter inside instruction " << std::dec << programCounter << std::endl;
+  std::cout << "program counter inside instruction " << std::dec
+            << programCounter << std::endl;
   std::cout << "decoding " << std::hex << instruction << std::endl;
   uint16_t lastThreeNibbles = instruction & 0x0FFF;
-  uint8_t secondNibble = 0x0F00 & instruction >> 8;
-  uint8_t thirdNibble = 0x00F0 & instruction >> 4;
+  uint8_t secondNibble = (0x0F00 & instruction) >> 8;
+  uint8_t thirdNibble = (0x00F0 & instruction) >> 4;
   uint8_t fourthNibble = 0x000F & instruction;
   uint8_t lastTwoNibbles = 0x00FF & instruction;
 
+  std::cout << "second nib " << (int)secondNibble << std::endl;
+  std::cout << "third nib " << (int)thirdNibble << std::endl;
   switch (instruction & 0xF000) {
   case 0x0000:
     std::cout << "clearing screen" << std::endl;
@@ -201,7 +179,8 @@ void decode(uint16_t instruction) {
     return;
 
   case 0x1000: // jump to memory address
-    std::cout << "jumping through instruction " << std::hex << instruction << std::endl;
+    std::cout << "jumping through instruction " << std::hex << instruction
+              << std::endl;
     programCounter = lastThreeNibbles;
     return;
   case 0x6000: // 6XNN sets register X to the number NN
@@ -214,29 +193,33 @@ void decode(uint16_t instruction) {
     idxRegister = lastThreeNibbles;
     return;
   case 0xD000: // display DXYN
+
     uint16_t x_coord = registers[secondNibble] % 64;
     uint16_t y_coord = registers[thirdNibble] % 32;
+    std::cout << "x coord " << x_coord << std::endl;
+
+    std::cout << "y coord " << y_coord << std::endl;
     registers[15] = 0;
     uint8_t height = fourthNibble;
+
     for (int r = 0; r < height; r++) {
       uint8_t spritePixel = ram[idxRegister + r];
 
       for (int c = 0; c < 8; c++) {
-        int shift_x = x_coord + r;
-        int shift_y = y_coord + c;
-        if (shift_x > 63)
-          break;
-        if (shift_y > 31)
-          break;
-        if (spritePixel && display[shift_x][shift_y]) {
-          display[shift_x][shift_y] = false;
-          registers[15] = 1;
-        } else if (spritePixel && !display[shift_x][shift_y]) {
-          display[shift_x][shift_y] = true;
+        int shift_x = x_coord + c;
+        int shift_y = y_coord + r;
+        bool isSpriteBitOn = (spritePixel & (0x80 >> c));
+        if (isSpriteBitOn) {
+          if (display[shift_y][shift_x]) {
+            registers[15] = 1; // Set the collision flag
+          }
+          // XOR the current display pixel with the sprite bit
+          display[shift_y][shift_x] ^= true;
+
+          redrawScreen();
         }
       }
     }
-    redrawScreen();
     return;
   }
 }
