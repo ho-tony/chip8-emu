@@ -5,7 +5,7 @@
 #include <iostream>
 #include <stdint.h>
 #include <vector>
-/* #include <stack> */
+#include <stack> 
 #include <SDL2/SDL.h>
 #include <fstream>
 
@@ -31,7 +31,7 @@ uint16_t font[80] = {
     0xF0, 0x80, 0xF0, 0x80, 0x80  // F
 };
 bool display[32][64];
-/* std::stack<uint16_t> data_stk; //todo: stackoverflow handle	 */
+std::stack<uint16_t> data_stk; //todo: stackoverflow handle	 
 /*  */
 /* uint8_t delayTimer = 0; //delays clock when above 0  */
 /* uint8_t soundTimer = 0; //beeps when above 0  */
@@ -66,14 +66,11 @@ int main() {
         running = false;
       }
     }
-    std::cout << "program counter: " << programCounter << std::endl;
     uint8_t firstHalfInstruct = ram[programCounter];
     uint8_t secondHalfInstruct = ram[programCounter + 1];
     uint16_t instruction = static_cast<uint16_t>(firstHalfInstruct << 8);
 
     instruction = instruction | secondHalfInstruct;
-    std::cout << "program counter before decoding " << std::dec
-              << programCounter << std::endl;
     decode(instruction);
     programCounter += 2;
     SDL_Delay(300);
@@ -91,9 +88,9 @@ void initalizeScreen() {
               << std::endl;
     return;
   }
-  window =
-      SDL_CreateWindow("Potato Chip8", SDL_WINDOWPOS_UNDEFINED,
-                       SDL_WINDOWPOS_UNDEFINED, SCREEN_WIDTH, SCREEN_HEIGHT, SDL_WINDOW_SHOWN);
+  window = SDL_CreateWindow("Potato Chip8", SDL_WINDOWPOS_UNDEFINED,
+                            SDL_WINDOWPOS_UNDEFINED, SCREEN_WIDTH,
+                            SCREEN_HEIGHT, SDL_WINDOW_SHOWN);
   ;
   renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED);
   // add error handling for window and renderer
@@ -138,56 +135,70 @@ void readAndStoreRom() {
 
 void redrawScreen() {
   SDL_RenderClear(renderer);
-    for (int y = 0; y < 32; ++y) {
-        for (int x = 0; x < 64; ++x) {
-           bool isPixelTurnedOn = display[y][x];
-            if (isPixelTurnedOn) {
-              SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
-            } else {
-              SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
-            }
-          SDL_Rect block {x * 10, y * 10, 10, 10};
-          SDL_RenderDrawRect(renderer, &block);
-          SDL_RenderFillRect(renderer, &block);
-        }
+  for (int y = 0; y < 32; ++y) {
+    for (int x = 0; x < 64; ++x) {
+      bool isPixelTurnedOn = display[y][x];
+      if (isPixelTurnedOn) {
+        SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
+      } else {
+        SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
+      }
+      SDL_Rect block{x * 10, y * 10, 10, 10};
+      SDL_RenderDrawRect(renderer, &block);
+      SDL_RenderFillRect(renderer, &block);
     }
+  }
 
-    SDL_RenderPresent(renderer);
+  SDL_RenderPresent(renderer);
 }
 void decode(uint16_t instruction) {
-  std::cout << "program counter inside instruction " << std::dec
-            << programCounter << std::endl;
-  std::cout << "decoding " << std::hex << instruction << std::endl;
   uint16_t lastThreeNibbles = instruction & 0x0FFF;
   uint8_t secondNibble = (0x0F00 & instruction) >> 8;
   uint8_t thirdNibble = (0x00F0 & instruction) >> 4;
   uint8_t fourthNibble = 0x000F & instruction;
   uint8_t lastTwoNibbles = 0x00FF & instruction;
 
-  std::cout << "second nib " << (int)secondNibble << std::endl;
-  std::cout << "third nib " << (int)thirdNibble << std::endl;
   switch (instruction & 0xF000) {
   case 0x0000:
-    std::cout << "clearing screen" << std::endl;
-    if ((0x0FFF & instruction) == 0x00E0) {
+    switch ((0xFFFF & instruction)) {
+    case 0x00E0:
       for (int i = 0; i < 32; i++) {
         for (int j = 0; j < 64; j++) {
           display[i][j] = false;
         }
       }
+      redrawScreen();
+      return;
+    //returns from subroutine 
+    case 0x00EE: 
+      programCounter = data_stk.top();
+      data_stk.pop();
+      break;
+    default:
+      return;
     }
-    return;
 
   case 0x1000: // jump to memory address
-    std::cout << "jumping through instruction " << std::hex << instruction
-              << std::endl;
     programCounter = lastThreeNibbles;
+    return;
+  case 0x2000:
+    
+    data_stk.push(programCounter);
+    programCounter = lastThreeNibbles;
+    return;
+  case 0x3000:
+    return;
+  case 0x4000:
+    return;
+  case 0x5000:
     return;
   case 0x6000: // 6XNN sets register X to the number NN
     registers[secondNibble] = lastTwoNibbles;
     return;
   case 0x7000: // 7XNN adds register X by NN
     registers[secondNibble] += lastTwoNibbles;
+    return;
+  case 0x9000:
     return;
   case 0xA000:
     idxRegister = lastThreeNibbles;
@@ -196,9 +207,7 @@ void decode(uint16_t instruction) {
 
     uint16_t x_coord = registers[secondNibble] % 64;
     uint16_t y_coord = registers[thirdNibble] % 32;
-    std::cout << "x coord " << x_coord << std::endl;
 
-    std::cout << "y coord " << y_coord << std::endl;
     registers[15] = 0;
     uint8_t height = fourthNibble;
 
@@ -211,9 +220,8 @@ void decode(uint16_t instruction) {
         bool isSpriteBitOn = (spritePixel & (0x80 >> c));
         if (isSpriteBitOn) {
           if (display[shift_y][shift_x]) {
-            registers[15] = 1; // Set the collision flag
+            registers[15] = 1;
           }
-          // XOR the current display pixel with the sprite bit
           display[shift_y][shift_x] ^= true;
 
           redrawScreen();
