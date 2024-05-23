@@ -9,7 +9,7 @@
 #include <SDL2/SDL.h>
 #include <fstream>
 
-uint16_t registers[16];
+uint8_t registers[16];
 uint16_t idxRegister = 0;          // used to point at locations in memory
 std::vector<uint8_t> ram(4096, 0); // initializes ram
 uint16_t font[80] = {
@@ -181,16 +181,26 @@ void decode(uint16_t instruction) {
   case 0x1000: // jump to memory address
     programCounter = lastThreeNibbles;
     return;
-  case 0x2000:
-    
+  case 0x2000:  
     data_stk.push(programCounter);
     programCounter = lastThreeNibbles;
     return;
   case 0x3000:
+    //if vx is equal nn (3xnn)
+    if (registers[secondNibble] == lastTwoNibbles) {
+      programCounter+=2;
+    }
+
     return;
   case 0x4000:
+    if (registers[secondNibble] != lastTwoNibbles) {
+      programCounter += 2;
+    }
     return;
   case 0x5000:
+    if (registers[secondNibble] == registers[thirdNibble]) {
+      programCounter += 2; 
+    }
     return;
   case 0x6000: // 6XNN sets register X to the number NN
     registers[secondNibble] = lastTwoNibbles;
@@ -198,7 +208,60 @@ void decode(uint16_t instruction) {
   case 0x7000: // 7XNN adds register X by NN
     registers[secondNibble] += lastTwoNibbles;
     return;
+  case 0x8000:
+    switch (fourthNibble) {
+      case 0:
+        registers[secondNibble] = registers[thirdNibble];
+        break;
+      case 1:
+        registers[secondNibble] |= registers[thirdNibble];
+        break; 
+      case 2:
+        registers[secondNibble] &= regitsers[thirdNibble];
+        break;
+      case 3:
+        registers[secondNibble] ^= registers[thirdNibble];
+        break;
+      case 4: 
+        uint16_t result = registers[secondNibble] + registers[thirdNibble];
+        if (result > 255) {
+          registers[0xF] = 1; 
+        } else {
+          registers[0xF] = 0;
+        } 
+        registers += registers[thirdNibble];
+        break;
+      case 5:
+        if (registers[secondNibble] > registers[thirdNibble]) {
+          registers[0xF] = 1;
+        } else {
+          registers[0xF] = 0;
+        }
+        uint16_t result = registers[secondNibble] - registers[thirdNibble];
+        registers[secondNibble] -= registers[thirdNibble];
+        break;
+      case 6:
+        //todo shift
+        break;
+      case 7:
+        if (registers[thirdNibble] > registers[secondNibble]) {
+          registers[0xF] = 1;
+        } else {
+          registers[0xF] = 0;
+        }
+        uint16_t result = registers[secondNibble] - registers[thirdNibble];
+        registers[secondNibble] = registers[thirdNibble] - registers[secondNibble];
+        break;
+      case 0xE:
+        //todo shift
+        break;
+    }
+    
+    return;
   case 0x9000:
+    if (registers[secondNibble] != registers[thirdNibble]) {
+      programCounter += 2; 
+    }
     return;
   case 0xA000:
     idxRegister = lastThreeNibbles;
