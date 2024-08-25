@@ -11,20 +11,22 @@
 #include <stdint.h>
 #include "chip8machine.h"
 
+
 int keyMap[256];
 bool keysPressed[16];
 
 void readAndStoreRom();
 void initializeFont();
 void updateTimers();
-void intializeKeys();
+void initializeKeys();
 void decode(uint16_t instruction);
-void handleKeyPress(SDL_Keycode keycode, bool isKeyDown);
+void handleKeyPress(int keycode, bool isKeyDown);
 
 int main() {
   std::cout << " potato chip running\n";
   Chip8Machine chip8;
-  intializeKeys();
+  chip8.readAndStoreRom();
+  initializeKeys();
 
   
   // timing should be 700 cycles per second
@@ -41,8 +43,10 @@ int main() {
         handleKeyPress(e.key.keysym.sym, false);
       }
     }
+    // std::cout << "running" << std::endl;
     chip8.cpuRetrieveNextInstruction();
-    SDL_Delay(1); // prevents high cpu usage
+  
+    SDL_Delay(1200); // prevents high cpu usage
   }
   chip8.destroyGPU();
   SDL_Quit();
@@ -50,13 +54,13 @@ int main() {
   return 0;
 }
 
-void handleKeyPress(SDL_KeyCode sdl_key, bool isKeyDown) {
+void handleKeyPress(int sdl_key, bool isKeyDown) {
   if (sdl_key < 256 && keyMap[sdl_key] != -1) {
     keysPressed[keyMap[sdl_key]] = isKeyDown;
   }
 }
 
-void initalizeKeys() {
+void initializeKeys() {
   keyMap[SDLK_1] = 0x1;
   keyMap[SDLK_2] = 0x2;
   keyMap[SDLK_3] = 0x3;
@@ -75,9 +79,3 @@ void initalizeKeys() {
   keyMap[SDLK_v] = 0xF;
   return;
 }
-
-/*
- * Probably have to redo this function for effective animations
- *
- */
-

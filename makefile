@@ -11,7 +11,7 @@ SDL2_LDFLAGS = -L$(SDL2_PATH)/lib -lSDL2
 TARGET = chip8 
 
 # Source files
-SRCS = chip8.cpp
+SRCS = chip8.cpp chip8machine.cpp cpu.cpp gpu.cpp
 
 # Object files
 OBJS = $(SRCS:.cpp=.o)

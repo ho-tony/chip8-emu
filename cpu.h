@@ -12,9 +12,9 @@ public:
     void decode(uint16_t instruction);
     void retrieveNextInstruction();
     void updateTimers();
-private: 
     std::vector<uint8_t> ram; // initializes ram
-    int prevTime = 0;
+private: 
+    Uint32 prevTime = 0;
     GPU& gpu;
     uint16_t programCounter = 0x200;
     std::stack<uint16_t> dataStk;

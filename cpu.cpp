@@ -1,13 +1,18 @@
 #include "cpu.h"
+#include <SDL2/SDL_stdinc.h>
+#include <iostream> 
 #include <SDL2/SDL_timer.h>
-
+#include <iomanip>  // for std::setw and std::setfill
 
 CPU::CPU(GPU &gpuRef, std::vector<uint8_t> &ramRef) : ram(ramRef), gpu(gpuRef) {
-    prevTime = SDL_GetTicks();
+  prevTime = SDL_GetTicks();
+
 }
 
 void CPU::updateTimers() {
-  int currentTime = SDL_GetTicks();
+  auto currentTime = SDL_GetTicks();
+  // std::cout << "current " << currentTime << std::endl;
+  // std::cout << "prev " << prevTime << std::endl;
   if (currentTime - prevTime < TIMER_INTERVAL) {
     return;
   }
@@ -18,16 +23,31 @@ void CPU::updateTimers() {
   // todo: add sound timer
 }
 void CPU::retrieveNextInstruction() {
+  
+  // for (const auto& elem : ram) std::cout << elem << " "; std::cout << std::endl;
+  uint8_t firstHalfInstruct = ram[programCounter];
+  uint8_t secondHalfInstruct = ram[programCounter + 1];
+  uint16_t instruction = static_cast<uint16_t>(firstHalfInstruct << 8);
 
-    uint8_t firstHalfInstruct = ram[programCounter];
-    uint8_t secondHalfInstruct = ram[programCounter + 1];
-    uint16_t instruction = static_cast<uint16_t>(firstHalfInstruct << 8);
-
-    instruction = instruction | secondHalfInstruct;
-    decode(instruction);
-    programCounter += 2;
+  instruction = instruction | secondHalfInstruct;
+  decode(instruction);
+  programCounter += 2;
+  updateTimers();
 }
-void CPU::decode(uint16_t instruction) { uint16_t lastThreeNibbles = instruction & 0x0FFF; uint8_t secondNibble = (0x0F00 & instruction) >> 8; uint8_t thirdNibble = (0x00F0 & instruction) >> 4; uint8_t fourthNibble = 0x000F & instruction; uint8_t lastTwoNibbles = 0x00FF & instruction; switch (instruction & 0xF000) { case 0x0000: switch ((0xFFFF & instruction)) { case 0x00E0: for (int i = 0; i < 32; i++) {
+void CPU::decode(uint16_t instruction) {
+  uint16_t lastThreeNibbles = instruction & 0x0FFF;
+  uint8_t secondNibble = (0x0F00 & instruction) >> 8;
+  uint8_t thirdNibble = (0x00F0 & instruction) >> 4;
+  uint8_t fourthNibble = 0x000F & instruction;
+  uint8_t lastTwoNibbles = 0x00FF & instruction;
+  std::cout << "Instruction: 0x" 
+              << std::hex << std::setw(4) << std::setfill('0') 
+              << instruction << std::dec << std::endl;
+  switch (instruction & 0xF000) {
+  case 0x0000:
+    switch ((0xFFFF & instruction)) {
+    case 0x00E0:
+      for (int i = 0; i < 32; i++) {
         for (int j = 0; j < 64; j++) {
           gpu.display[i][j] = false;
         }
@@ -109,10 +129,13 @@ void CPU::decode(uint16_t instruction) { uint16_t lastThreeNibbles = instruction
     }
     case 6:
       // optional set vx = vy
-      if (registers[secondNibble] == 0 || registers[secondNibble] == 1) {
-        registers[0xF] = registers[secondNibble];
-      }
-      registers[secondNibble] = (registers[secondNibble] >> 1);
+      registers[0xF] = registers[secondNibble] & 0x01;
+      registers[secondNibble] >>= 1;
+
+      // if (registers[secondNibble] == 0 || registers[secondNibble] == 1) {
+      //   registers[0xF] = registers[secondNibble];
+      // }
+      // registers[secondNibble] = (registers[secondNibble] >> 1);
       break;
     case 7:
       if (registers[thirdNibble] > registers[secondNibble]) {
@@ -124,7 +147,8 @@ void CPU::decode(uint16_t instruction) { uint16_t lastThreeNibbles = instruction
           registers[thirdNibble] - registers[secondNibble];
       break;
     case 0xE:
-      registers[thirdNibble] = (registers[secondNibble] << 1);
+      registers[secondNibble] = (registers[secondNibble] << 1);
+      registers[0xF] = (registers[secondNibble] & 0x80) ? 1 : 0; // Set VF to the most significant bit before the shift
       break;
     }
 
@@ -156,6 +180,7 @@ void CPU::decode(uint16_t instruction) { uint16_t lastThreeNibbles = instruction
       return;
     case 0x15:
       delayTimer = registers[secondNibble];
+      break;
     case 0x18:
       // todo sound timer
       return;
@@ -186,8 +211,8 @@ void CPU::decode(uint16_t instruction) { uint16_t lastThreeNibbles = instruction
     case 0x33:
       uint8_t num = registers[secondNibble];
       ram[idxRegister] = num / 100;
-      ram[idxRegister] = (num / 10) % 10;
-      ram[idxRegister] = num % 10;
+      ram[idxRegister + 1] = (num / 10) % 10;
+      ram[idxRegister + 2] = num % 10;
       return;
     }
   case 0x55:
@@ -211,8 +236,8 @@ void CPU::decode(uint16_t instruction) { uint16_t lastThreeNibbles = instruction
       uint8_t spritePixel = ram[idxRegister + r];
 
       for (int c = 0; c < 8; c++) {
-        int shift_x = x_coord + c;
-        int shift_y = y_coord + r;
+        int shift_x = (x_coord + c) % 64;
+        int shift_y = (y_coord + r) % 32;
         bool isSpriteBitOn = (spritePixel & (0x80 >> c));
         if (isSpriteBitOn) {
           if (gpu.display[shift_y][shift_x]) {
@@ -220,10 +245,10 @@ void CPU::decode(uint16_t instruction) { uint16_t lastThreeNibbles = instruction
           }
           gpu.display[shift_y][shift_x] ^= true;
 
-          gpu.redrawScreen();
         }
       }
     }
+    gpu.redrawScreen();
     return;
   }
 }

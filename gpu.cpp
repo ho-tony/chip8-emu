@@ -3,6 +3,7 @@
 #include "SDL2/SDL.h"
 
 GPU::GPU() {
+  std::cout<< "gpu log" << std::endl;
 
   if (SDL_Init(SDL_INIT_VIDEO) < 0) {
     std::cerr << "SDL could not initialize! SDL_Error: " << SDL_GetError()
@@ -32,6 +33,13 @@ GPU::GPU() {
 }
 
 void GPU::redrawScreen() {
+
+    
+  // for (int i = 0; i < 32; ++i) {
+  //   for (int j = 0; j < 64; ++j) {
+  //     std::cout << display[j][i] << std::endl;
+  //   }
+  // }
   SDL_RenderClear(renderer);
   for (int y = 0; y < 32; ++y) {
     for (int x = 0; x < 64; ++x) {
@@ -42,7 +50,7 @@ void GPU::redrawScreen() {
         SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
       }
       SDL_Rect block{x * 10, y * 10, 10, 10};
-      SDL_RenderDrawRect(renderer, &block);
+      // SDL_RenderDrawRect(renderer, &block);
       SDL_RenderFillRect(renderer, &block);
     }
   }

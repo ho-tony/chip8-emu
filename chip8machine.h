@@ -15,10 +15,10 @@ public:
   void destroyGPU();  
   bool isRunning = false;
 private:
+  std::vector<uint8_t> ram; // initializes ram
   GPU gpu;
   CPU cpu;
   std::stack<uint8_t> dataStk;
-  std::vector<uint8_t> ram; // initializes ram
   uint16_t programCounter = 0x200;
   uint16_t font[80] = {
       0xF0, 0x90, 0x90, 0x90, 0xF0, // 0
